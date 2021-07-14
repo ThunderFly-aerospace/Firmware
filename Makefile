@@ -165,6 +165,11 @@ ifdef PYTHON_EXECUTABLE
 	CMAKE_ARGS += -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
 endif
 
+# Check if the microRTPS agent is to be built
+ifdef BUILD_MICRORTPS_AGENT
+  CMAKE_ARGS += -DBUILD_MICRORTPS_AGENT=ON
+endif
+
 # Functions
 # --------------------------------------------------------------------
 # describe how to build a cmake config
@@ -274,7 +279,6 @@ misc_qgc_extra_firmware: \
 	check_bitcraze_crazyflie_default \
 	check_bitcraze_crazyflie21_default \
 	check_airmind_mindpx-v2_default \
-	check_px4_fmu-v2_lpe \
 	sizes
 
 # builds with RTPS
@@ -315,18 +319,21 @@ coverity_scan: px4_sitl_default
 
 # Documentation
 # --------------------------------------------------------------------
-.PHONY: parameters_metadata airframe_metadata module_documentation px4_metadata doxygen
+.PHONY: parameters_metadata airframe_metadata module_documentation extract_events px4_metadata doxygen
 
 parameters_metadata:
 	@$(MAKE) --no-print-directory px4_sitl_default metadata_parameters ver_gen
 
 airframe_metadata:
-	@$(MAKE) --no-print-directory px4_sitl_default metadata_airframes
+	@$(MAKE) --no-print-directory px4_sitl_default metadata_airframes ver_gen
 
 module_documentation:
 	@$(MAKE) --no-print-directory px4_sitl_default metadata_module_documentation
 
-px4_metadata: parameters_metadata airframe_metadata module_documentation
+extract_events:
+	@$(MAKE) --no-print-directory px4_sitl_default metadata_extract_events ver_gen
+
+px4_metadata: parameters_metadata airframe_metadata module_documentation extract_events
 
 doxygen:
 	@mkdir -p "$(SRC_DIR)"/build/doxygen

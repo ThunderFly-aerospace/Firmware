@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,15 +40,14 @@ static constexpr int16_t combine(uint8_t msb, uint8_t lsb)
 	return (msb << 8u) | lsb;
 }
 
-MPU6500::MPU6500(I2CSPIBusOption bus_option, int bus, uint32_t device, enum Rotation rotation, int bus_frequency,
-		 spi_mode_e spi_mode, spi_drdy_gpio_t drdy_gpio) :
-	SPI(DRV_IMU_DEVTYPE_MPU6500, MODULE_NAME, bus, device, spi_mode, bus_frequency),
-	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
-	_drdy_gpio(drdy_gpio),
-	_px4_accel(get_device_id(), rotation),
-	_px4_gyro(get_device_id(), rotation)
+MPU6500::MPU6500(const I2CSPIDriverConfig &config) :
+	SPI(config),
+	I2CSPIDriver(config),
+	_drdy_gpio(config.drdy_gpio),
+	_px4_accel(get_device_id(), config.rotation),
+	_px4_gyro(get_device_id(), config.rotation)
 {
-	if (drdy_gpio != 0) {
+	if (config.drdy_gpio != 0) {
 		_drdy_missed_perf = perf_alloc(PC_COUNT, MODULE_NAME": DRDY missed");
 	}
 
@@ -106,6 +105,30 @@ void MPU6500::print_status()
 	perf_print_counter(_drdy_missed_perf);
 }
 
+bool MPU6500::StoreCheckedRegisterValue(Register reg)
+{
+	// 3 retries
+	for (int i = 0; i < 3; i++) {
+		uint8_t read1 = RegisterRead(reg);
+		uint8_t read2 = RegisterRead(reg);
+
+		if (read1 == read2) {
+			for (auto &r : _register_cfg) {
+				if (r.reg == reg) {
+					r.set_bits = read1;
+					r.clear_bits = ~read1;
+					return true;
+				}
+			}
+
+		} else {
+			PX4_ERR("0x%02hhX read 1 != read 2 (0x%02hhX != 0x%02hhX)", static_cast<uint8_t>(reg), read1, read2);
+		}
+	}
+
+	return false;
+}
+
 int MPU6500::probe()
 {
 	const uint8_t whoami = RegisterRead(Register::WHO_AM_I);
@@ -139,9 +162,18 @@ void MPU6500::RunImpl()
 		if ((RegisterRead(Register::WHO_AM_I) == WHOAMI)
 		    && (RegisterRead(Register::PWR_MGMT_1) == 0x01)) {
 
+			// offset registers (factory calibration) should not change during normal operation
+			StoreCheckedRegisterValue(Register::XA_OFFSET_H);
+			StoreCheckedRegisterValue(Register::XA_OFFSET_L);
+			StoreCheckedRegisterValue(Register::YA_OFFSET_H);
+			StoreCheckedRegisterValue(Register::YA_OFFSET_L);
+			StoreCheckedRegisterValue(Register::ZA_OFFSET_H);
+			StoreCheckedRegisterValue(Register::ZA_OFFSET_L);
+
 			// Wakeup and reset digital signal path
 			RegisterWrite(Register::PWR_MGMT_1, PWR_MGMT_1_BIT::CLKSEL_0);
-			RegisterWrite(Register::SIGNAL_PATH_RESET, SIGNAL_PATH_RESET_BIT::ACCEL_RESET | SIGNAL_PATH_RESET_BIT::TEMP_RESET);
+			RegisterWrite(Register::SIGNAL_PATH_RESET,
+				      SIGNAL_PATH_RESET_BIT::GYRO_RST | SIGNAL_PATH_RESET_BIT::ACCEL_RST | SIGNAL_PATH_RESET_BIT::TEMP_RST);
 			RegisterWrite(Register::USER_CTRL, USER_CTRL_BIT::SIG_COND_RST | USER_CTRL_BIT::I2C_IF_DIS);
 
 			// if reset succeeded then configure

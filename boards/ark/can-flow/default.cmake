@@ -15,6 +15,7 @@ px4_add_board(
 		bootloaders
 		distance_sensor/broadcom/afbrs50
 		imu/bosch/bmi088
+		imu/invensense/icm42688p
 		optical_flow/paw3902
 		uavcannode
 	MODULES
@@ -23,10 +24,10 @@ px4_add_board(
 		#sensors
 	SYSTEMCMDS
 		param
-		#perf
+		perf
 		#reboot
 		#system_time
-		#top
+		top
 		#topic_listener
 		#uorb
 		#ver

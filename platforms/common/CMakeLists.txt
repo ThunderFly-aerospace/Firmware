@@ -41,6 +41,7 @@ endif()
 
 add_library(px4_platform
 	board_identity.c
+	events.cpp
 	external_reset_lockout.cpp
 	i2c.cpp
 	i2c_spi_buses.cpp
@@ -60,3 +61,4 @@ endif()
 
 add_subdirectory(px4_work_queue)
 add_subdirectory(work_queue)
+add_subdirectory(px4_sw_crypto)

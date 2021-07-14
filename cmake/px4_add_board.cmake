@@ -61,6 +61,8 @@
 #			[ TESTING ]
 #			[ LINKER_PREFIX <string> ]
 #			[ ETHERNET ]
+#			[ CRYPTO <string> ]
+#			[ KEYSTORE <string> ]
 #			)
 #
 #	Input:
@@ -86,6 +88,8 @@
 #		TESTING			: flag to enable automatic inclusion of PX4 testing modules
 #		LINKER_PREFIX	: optional to prefix on the Linker script.
 #		ETHERNET		: flag to indicate that ethernet is enabled
+#		CRYPTO			: Crypto implementation selection
+#		KEYSTORE		: Keystore implememntation selection
 #
 #
 #	Example:
@@ -149,6 +153,8 @@ function(px4_add_board)
 			UAVCAN_INTERFACES
 			UAVCAN_TIMER_OVERRIDE
 			LINKER_PREFIX
+			CRYPTO
+			KEYSTORE
 		MULTI_VALUE
 			DRIVERS
 			MODULES
@@ -209,8 +215,12 @@ function(px4_add_board)
 	set(config_romfs_extra_dependencies)
 	# additional embedded metadata
 	if (NOT CONSTRAINED_FLASH AND NOT EXTERNAL_METADATA AND NOT ${PX4_BOARD_LABEL} STREQUAL "test")
-		list(APPEND romfs_extra_files ${PX4_BINARY_DIR}/parameters.json.xz)
-		list(APPEND romfs_extra_dependencies parameters_xml)
+		list(APPEND romfs_extra_files
+			${PX4_BINARY_DIR}/parameters.json.xz
+			${PX4_BINARY_DIR}/events/all_events.json.xz)
+		list(APPEND romfs_extra_dependencies
+			parameters_xml
+			events_json)
 	endif()
 	list(APPEND romfs_extra_files ${PX4_BINARY_DIR}/component_general.json.xz)
 	list(APPEND romfs_extra_dependencies component_general_json)
@@ -265,6 +275,14 @@ function(px4_add_board)
 
 	if(ETHERNET)
 		set(PX4_ETHERNET "1" CACHE INTERNAL "ethernet enabled" FORCE)
+	endif()
+
+	if(CRYPTO)
+		set(PX4_CRYPTO ${CRYPTO} CACHE STRING "PX4 crypto implementation" FORCE)
+	endif()
+
+	if(KEYSTORE)
+		set(PX4_KEYSTORE ${KEYSTORE} CACHE STRING "PX4 keystore implementation" FORCE)
 	endif()
 
 	if(LINKER_PREFIX)
